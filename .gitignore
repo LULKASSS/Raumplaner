@@ -1,0 +1,10 @@
+# Echte Scans, IKEA-Modelle und Daten des Kumpels – nie committen (Repo ist öffentlich)
+proben/
+
+node_modules/
+test-results/
+playwright-report/
+.DS_Store
+
+# Lokale Werkzeug-Einstellungen
+.claude/

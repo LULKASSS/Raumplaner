@@ -1,0 +1,182 @@
+{
+ "_hinweis": "Erfundener Testraum, kein echter Scan. Erzeugt mit npm run testraum.",
+ "identifier": "00000000-0000-4000-8000-000000000012",
+ "version": 2,
+ "story": 0,
+ "walls": [
+  {
+   "identifier": "00000000-0000-4000-8000-000000000001",
+   "category": {
+    "wall": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [4.2,2.5,0],
+   "transform": [0.939693,0,-0.34202,0,0,1,0,0,0.34202,0,0.939693,0,3.273355,-0.17,-2.818242,1],
+   "parentIdentifier": null,
+   "polygonCorners": [],
+   "completedEdges": [],
+   "story": 0
+  },
+  {
+   "identifier": "00000000-0000-4000-8000-000000000002",
+   "category": {
+    "wall": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [3.6,2.5,0],
+   "transform": [0.34202,0,0.939693,0,0,1,0,0,-0.939693,0,0.34202,0,5.862345,-0.17,-1.845038,1],
+   "parentIdentifier": null,
+   "polygonCorners": [],
+   "completedEdges": [],
+   "story": 0
+  },
+  {
+   "identifier": "00000000-0000-4000-8000-000000000003",
+   "category": {
+    "wall": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [4.2,2.5,0],
+   "transform": [-0.939693,0,0.34202,0,0,1,0,0,-0.34202,0,-0.939693,0,4.504627,-0.17,0.564651,1],
+   "parentIdentifier": null,
+   "polygonCorners": [],
+   "completedEdges": [],
+   "story": 0
+  },
+  {
+   "identifier": "00000000-0000-4000-8000-000000000004",
+   "category": {
+    "wall": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [3.6,2.5,0],
+   "transform": [-0.34202,0,-0.939693,0,0,1,0,0,0.939693,0,-0.34202,0,1.915636,-0.17,-0.408553,1],
+   "parentIdentifier": null,
+   "polygonCorners": [],
+   "completedEdges": [],
+   "story": 0
+  }
+ ],
+ "doors": [
+  {
+   "identifier": "00000000-0000-4000-8000-000000000005",
+   "category": {
+    "door": {
+     "isOpen": false
+    }
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [0.88,2,0],
+   "transform": [-0.34202,0,-0.939693,0,0,1,0,0,0.939693,0,-0.34202,0,1.505212,-0.42,-1.536184,1],
+   "parentIdentifier": "00000000-0000-4000-8000-000000000004",
+   "polygonCorners": [],
+   "completedEdges": [],
+   "story": 0
+  }
+ ],
+ "windows": [
+  {
+   "identifier": "00000000-0000-4000-8000-000000000006",
+   "category": {
+    "window": {}
+   },
+   "confidence": {
+    "medium": {}
+   },
+   "dimensions": [1.4,1.3,0],
+   "transform": [-0.939693,0,0.34202,0,0,1,0,0,-0.34202,0,-0.939693,0,4.504627,0.13,0.564651,1],
+   "parentIdentifier": "00000000-0000-4000-8000-000000000003",
+   "polygonCorners": [],
+   "completedEdges": [],
+   "story": 0
+  }
+ ],
+ "openings": [],
+ "objects": [
+  {
+   "identifier": "00000000-0000-4000-8000-000000000007",
+   "category": {
+    "sofa": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [2.1,0.82,0.92],
+   "transform": [0.927184,0,-0.374607,0,0,1,0,0,0.374607,0,0.927184,0,3.722852,-1.01,-2.460399,1],
+   "attributes": {},
+   "story": 0
+  },
+  {
+   "identifier": "00000000-0000-4000-8000-000000000008",
+   "category": {
+    "table": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [1.2,0.75,0.7],
+   "transform": [0.939693,0,-0.34202,0,0,1,0,0,0.34202,0,0.939693,0,4.205101,-1.045,-1.135432,1],
+   "attributes": {},
+   "story": 0
+  },
+  {
+   "identifier": "00000000-0000-4000-8000-000000000009",
+   "category": {
+    "chair": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [0.5,0.9,0.55],
+   "transform": [-0.34202,0,-0.939693,0,0,1,0,0,0.939693,0,-0.34202,0,3.265408,-0.97,-0.793412,1],
+   "attributes": {},
+   "story": 0
+  },
+  {
+   "identifier": "00000000-0000-4000-8000-000000000010",
+   "category": {
+    "storage": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [0.8,1.8,0.4],
+   "transform": [0.34202,0,0.939693,0,0,1,0,0,-0.939693,0,0.34202,0,5.948023,-0.52,-1.02488,1],
+   "attributes": {},
+   "story": 0
+  }
+ ],
+ "floors": [
+  {
+   "identifier": "00000000-0000-4000-8000-000000000011",
+   "category": {
+    "floor": {}
+   },
+   "confidence": {
+    "high": {}
+   },
+   "dimensions": [4.2,3.6,0],
+   "transform": [0.939693,0,-0.34202,0,-0.34202,0,-0.939693,0,0,1,0,0,3.888991,-1.42,-1.126796,1],
+   "polygonCorners": [
+    [-2.1,-1.8,0],
+    [2.1,-1.8,0],
+    [2.1,1.8,0],
+    [-2.1,1.8,0]
+   ],
+   "parentIdentifier": null,
+   "completedEdges": [],
+   "story": 0
+  }
+ ],
+ "sections": []
+}
