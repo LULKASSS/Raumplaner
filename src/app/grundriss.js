@@ -116,7 +116,9 @@ export function erstelleGrundriss(el, o) {
 
     // Möbel
     const rot = daten.kollisionen || {};
-    for (const m of raum.moebel) {
+    // ausgewähltes Möbel zuletzt zeichnen, damit es oben liegt und sichtbar bleibt
+    const reihe = [...raum.moebel.filter(m => m.id !== daten.auswahl), ...raum.moebel.filter(m => m.id === daten.auswahl)];
+    for (const m of reihe) {
       const poly = grundflaeche(m), d = pfad(poly), wahl = m.id === daten.auswahl, getroffen = !!rot[m.id] && !m.fest;
       const klasse = ['g-m', m.fest ? 'fest' : '', getroffen ? 'rot' : wahl ? 'wahl' : ''].join(' ');
       teile.push(`<path class="${klasse}" d="${d}"><title>${esc(m.name || 'Möbel')}</title></path>`);
@@ -152,17 +154,18 @@ export function erstelleGrundriss(el, o) {
   const neuZeichnen = () => daten && zeichne({ ...daten, neuEinpassen: false });
 
   /* ---------- Treffer ---------- */
-  function moebelBei(p) {
-    const liste = daten?.raum?.moebel || [];
-    for (let i = liste.length - 1; i >= 0; i--) if (!liste[i].fest && punktInPolygon(p, grundflaeche(liste[i]))) return liste[i];
-    // kleine Teile großzügiger treffen
+  /** Alle Möbel unter dem Finger. Kleine Teile werden großzügiger getroffen. */
+  function moebelUnter(p) {
+    // feste Reihenfolge (oben gezeichnet zuerst), damit wiederholtes Antippen der Reihe nach durchschaltet
+    const reihe = (daten?.raum?.moebel || []).filter(m => !m.fest).reverse();
+    const treffer = reihe.filter(m => punktInPolygon(p, grundflaeche(m)));
+    if (treffer.length) return treffer;
     let best = null, bd = 14 / sicht.s;
-    for (const m of liste) {
-      if (m.fest) continue;
+    for (const m of reihe) {
       const poly = grundflaeche(m);
       for (let i = 0; i < 4; i++) { const d = laenge(sub(p, naechsterPunkt(p, poly[i], poly[(i + 1) % 4]))); if (d < bd) { bd = d; best = m; } }
     }
-    return best;
+    return best ? [best] : [];
   }
   function wandBei(p) {
     let best = null, bd = 24 / sicht.s;
@@ -178,8 +181,10 @@ export function erstelleGrundriss(el, o) {
     svg.setPointerCapture(e.pointerId);
     zeiger.set(e.pointerId, lokal(e));
     if (zeiger.size === 1) {
-      const p0 = lokal(e), w = zuWelt(p0.x, p0.y), m = o.modus === 'planen' ? moebelBei(w) : null;
-      geste = m ? { art: 'ziehen', id: m.id, griff: sub(w, m), start: p0, bewegt: false }
+      // liegen mehrere übereinander: das ausgewählte ziehen; Antippen wechselt zum nächsten darunter
+      const p0 = lokal(e), w = zuWelt(p0.x, p0.y), unter = o.modus === 'planen' ? moebelUnter(w) : [];
+      const m = unter.find(x => x.id === daten.auswahl) ?? unter[0];
+      geste = m ? { art: 'ziehen', id: m.id, griff: sub(w, m), start: p0, bewegt: false, unter: unter.map(x => x.id) }
         : { art: 'leer', start: p0, cx: sicht.cx, cz: sicht.cz, bewegt: false };
     } else if (zeiger.size === 2) {
       if (geste?.art === 'ziehen' && geste.bewegt) o.beiZiehen?.(geste.id, null, 'ende');
@@ -216,7 +221,11 @@ export function erstelleGrundriss(el, o) {
     if (!geste) return;
     if (geste.art === 'ziehen') {
       if (geste.bewegt) o.beiZiehen?.(geste.id, sub(zuWelt(p.x, p.y), geste.griff), 'ende');
-      else o.beiTippen?.(geste.id);
+      else {
+        const { unter } = geste, i = unter.indexOf(daten.auswahl);
+        const naechstes = unter.length > 1 && i >= 0 ? unter[(i + 1) % unter.length] : geste.id;
+        o.beiTippen?.(naechstes);
+      }
     } else if (geste.art === 'leer' && !geste.bewegt && e.type === 'pointerup') {
       const w = zuWelt(p.x, p.y);
       if (o.modus === 'messen') { const i = wandBei(w); if (i != null) o.beiWandTippen?.(i); }

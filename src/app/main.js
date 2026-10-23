@@ -465,7 +465,9 @@ function setzeVorlage(v, ersetzeId = null) {
     tippen(ersetzeId);
     return;
   }
-  const m = mitFoto(stelleAuf(vorlage, P.plan.mitte(), raumVon(S.doc)));
+  // Grundriss: Mitte des sichtbaren Ausschnitts; in 3D (Grundriss verborgen) die Raummitte. Der Kern sucht von dort einen freien Platz im Raum.
+  const start = S.modus === 'grundriss' ? P.plan.mitte() : { x: 0, z: 0 };
+  const m = mitFoto(stelleAuf(vorlage, start, raumVon(S.doc)));
   S.doc.moebel.push(m); S.auswahl = m.id;
   schrittMachen(); schliesseBlatt(true); zeichnePlan();
   if (v === EIGENES) tippen(m.id);

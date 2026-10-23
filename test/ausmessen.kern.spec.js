@@ -96,3 +96,32 @@ test('Prüfung meldet fehlende und unpassende Maße', () => {
   expect(vorschau({ ...RECHTECK, breite: null })).toBeNull();
   expect(vorschau(RECHTECK).flaeche).toBeCloseTo(15.12, 6);
 });
+
+test('Neues Möbel landet im Raum, auch wenn der Punkt draußen liegt (L-Form: Mitte der Hülle ist draußen)', async () => {
+  const { stelleAuf, istFrei } = await import('../src/kern/platzieren.js');
+  const r = raumAusMassen(L_FORM);
+  // Mitte der Hülle (0/0) liegt bei dieser L-Form im ausgeschnittenen Eck? Jedenfalls: Punkt weit draußen
+  for (const start of [{ x: 0, z: 0 }, { x: 9, z: -9 }, { x: 2.4, z: -1.9 }]) {
+    const m = stelleAuf({ name: 'Couchtisch', b: 1.2, t: 0.6, h: 0.4 }, start, { ...r, moebel: [] });
+    expect(istFrei(m, { ...r, moebel: [] })).toBe(true);
+  }
+});
+
+test('Zweimal dasselbe Möbel an dieselbe Stelle: das zweite rückt daneben statt darauf', async () => {
+  const { stelleAuf, ueberschneidungen } = await import('../src/kern/platzieren.js');
+  const r = { ...raumAusMassen(RECHTECK), moebel: [] };
+  const vorlage = { name: 'Couchtisch Beton', b: 1.2, t: 0.6, h: 0.39 };
+  const a = stelleAuf(vorlage, { x: 0, z: 0 }, r); r.moebel.push(a);
+  const b = stelleAuf(vorlage, { x: 0, z: 0 }, r); r.moebel.push(b);
+  const c = stelleAuf(vorlage, { x: 0, z: 0 }, r); r.moebel.push(c);
+  expect(ueberschneidungen(r)).toEqual({});
+  expect(Math.hypot(b.x - a.x, b.z - a.z)).toBeLessThan(1.2); // in der Nähe, nicht irgendwo
+});
+
+test('Raum zu voll: Möbel bleibt trotzdem im Raum', async () => {
+  const { stelleAuf } = await import('../src/kern/platzieren.js');
+  const { punktInPolygon } = await import('../src/kern/geometrie.js');
+  const r = { ...raumAusMassen({ ...RECHTECK, laenge: 1, breite: 1 }), moebel: [] };
+  const m = stelleAuf({ name: 'Bett', b: 1.4, t: 2, h: 0.45 }, { x: 5, z: 5 }, r);
+  expect(punktInPolygon(m, r.boden)).toBe(true);
+});

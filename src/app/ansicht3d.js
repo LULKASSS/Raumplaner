@@ -208,9 +208,10 @@ export function erstelle3D(el, o) {
     zeiger++;
     if (zeiger > 1) { if (geste?.bewegt) o.beiZiehen?.(geste.id, null, 'ende'); geste = null; steuerung.enabled = true; return; }
     treffer(e);
-    const hit = strahl.intersectObjects(moebelGruppe.children, true).map(x => idVon(x.object)).find(d => d && !d.fest);
-    const id = hit?.id;
-    geste = { id, x: e.clientX, y: e.clientY, bewegt: false };
+    // alle Möbel auf dem Strahl, nächstes zuerst; gezogen wird das ausgewählte, Antippen schaltet der Reihe nach durch
+    const ids = [...new Set(strahl.intersectObjects(moebelGruppe.children, true).map(x => idVon(x.object)).filter(d => d && !d.fest).map(d => d.id))];
+    const id = ids.includes(daten?.auswahl) ? daten.auswahl : ids[0];
+    geste = { id, x: e.clientX, y: e.clientY, bewegt: false, ids };
     if (id) {
       steuerung.enabled = false;
       const p = bodenPunkt(e), m = daten.raum.moebel.find(x => x.id === id);
@@ -226,7 +227,10 @@ export function erstelle3D(el, o) {
     zeiger = Math.max(0, zeiger - 1);
     if (!geste) { steuerung.enabled = true; return; }
     if (geste.id && geste.bewegt) { const p = bodenPunkt(e); o.beiZiehen?.(geste.id, p ? sub(p, geste.griff) : null, 'ende'); }
-    else if (!geste.bewegt && e.type === 'pointerup') o.beiTippen?.(geste.id || null);
+    else if (!geste.bewegt && e.type === 'pointerup') {
+      const i = geste.ids.indexOf(daten?.auswahl);
+      o.beiTippen?.(geste.ids.length > 1 && i >= 0 ? geste.ids[(i + 1) % geste.ids.length] : geste.id || null);
+    }
     geste = null; steuerung.enabled = true;
   };
   el.addEventListener('pointerup', ende);

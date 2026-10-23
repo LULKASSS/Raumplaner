@@ -198,14 +198,53 @@ export function dupliziere(m, raum) {
     delete kopie.scan;
     return einrasten(kopie, mit).moebel;
   });
-  return versuche.find(k => !ueberschneidungen({ ...mit, moebel: [...mit.moebel, k] })[id]) ?? versuche[0];
+  return versuche.find(k => istFrei(k, mit)) ?? { ...versuche[0], ...freierPlatz(versuche[0], mit, versuche[0]) };
 }
 
-/** Neues Möbel aus einer Vorlage an einem Punkt absetzen. */
+/** Passt das Möbel hier hin? Ganz im Raum, nicht in einer Wand, nicht im Türbereich, nicht auf einem anderen Möbel. */
+export function istFrei(m, raum) {
+  const poly = grundflaeche(m), mitte = { x: m.x, z: m.z };
+  // Ecken 1 cm nach innen gezogen, damit „bündig an der Wand“ als drinnen zählt
+  if (raum.boden?.length >= 3 && !poly.every(p => punktInPolygon(add(p, mul(einheit(sub(mitte, p)), 0.01)), raum.boden))) return false;
+  return !ueberschneidungen({ ...raum, moebel: [...raum.moebel.filter(o => o.id !== m.id), m] })[m.id];
+}
+
+/**
+ * Nächster freier Platz zu `start`: sucht in Ringen nach außen (10 cm Schritte), bis das Möbel ganz im Raum
+ * und ohne Überschneidung steht. Findet sich nichts (Raum voll), bleibt es am nächsten Punkt im Raum.
+ */
+export function freierPlatz(m, raum, start) {
+  const proben = [];
+  // Punkt draußen: am nächsten Punkt der Wände anfangen, sonst reicht der Suchkreis nicht bis in den Raum
+  if (raum.boden?.length >= 3 && !punktInPolygon(start, raum.boden)) {
+    let best = null, bd = Infinity;
+    for (const w of raum.waende) { const q = naechsterPunkt(start, w.a, w.b), d = laenge(sub(start, q)); if (d < bd) { bd = d; best = q; } }
+    if (best) start = best;
+  }
+  const h = raum.boden?.length ? raum.boden : [start];
+  const xs = h.map(p => p.x), zs = h.map(p => p.z), weit = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) + 0.5;
+  for (let r = 0; r <= weit; r += 0.1) {
+    const n = r === 0 ? 1 : Math.max(8, Math.round(2 * Math.PI * r / 0.1));
+    for (let i = 0; i < n; i++) {
+      const p = { x: start.x + r * Math.cos(2 * Math.PI * i / n), z: start.z + r * Math.sin(2 * Math.PI * i / n) };
+      const k = { ...m, ...p };
+      if (istFrei(k, raum)) return p;
+      if (!proben.length && raum.boden?.length >= 3 && punktInPolygon(p, raum.boden)) proben.push(p);
+    }
+  }
+  return proben[0] ?? start;
+}
+
+/**
+ * Neues Möbel aus einer Vorlage absetzen: möglichst nah am Punkt (z. B. Mitte des Bildschirms), aber immer im Raum
+ * und auf freiem Platz – nie außerhalb, nie auf einem anderen Möbel.
+ */
 export function stelleAuf(vorlage, punkt, raum) {
   const m = { id: neueId(), kategorie: vorlage.kategorie ?? null, name: vorlage.name ?? 'Möbel', quelle: vorlage.quelle ?? 'katalog',
-    modell: vorlage.modell ?? null, b: vorlage.b, t: vorlage.t, h: vorlage.h, ueberBoden: 0, winkel: vorlage.winkel ?? 0, x: punkt.x, z: punkt.z };
-  return einrasten(m, raum).moebel;
+    modell: vorlage.modell ?? null, b: vorlage.b, t: vorlage.t, h: vorlage.h, ueberBoden: 0, winkel: vorlage.winkel ?? 0 };
+  const gerastet = einrasten({ ...m, ...freierPlatz(m, raum, punkt) }, raum).moebel;
+  // Einrasten darf das Möbel nicht wieder auf ein anderes schieben
+  return istFrei(gerastet, raum) ? gerastet : { ...m, ...freierPlatz(m, raum, punkt) };
 }
 
 /**

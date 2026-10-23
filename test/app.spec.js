@@ -240,3 +240,63 @@ test('Gescanntes oder geplantes Sofa durch eine Anzeige ersetzen: Unterschied wi
   await expect(page.locator('#toast')).toHaveText('12 cm breiter · 3 cm tiefer');
   await expect(page.locator('.blatt-kopf input')).toHaveValue('Big Sofa Cord');
 });
+
+/** Möbel des offenen Raums aus der IndexedDB (gespeichert wird kurz verzögert). */
+async function moebelImSpeicher(page, anzahl) {
+  let liste;
+  await expect.poll(async () => (liste = await page.evaluate(async () => {
+    const id = decodeURIComponent(location.hash.split('=')[1]);
+    const db = await new Promise(ok => { const r = indexedDB.open('raumplaner'); r.onsuccess = () => ok(r.result); });
+    const doc = await new Promise(ok => { const r = db.transaction('raeume').objectStore('raeume').get(id); r.onsuccess = () => ok(r.result); });
+    return doc.moebel;
+  })).length).toBe(anzahl);
+  return liste;
+}
+
+test('Neue Möbel landen im Raum auf freiem Platz – auch zweimal dasselbe und bei verschobener Ansicht', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Testraum ansehen').click();
+  await page.waitForFunction(() => document.querySelectorAll('.schirm').length === 1);
+  for (let i = 0; i < 2; i++) {
+    await page.getByRole('button', { name: 'Möbel', exact: true }).click();
+    await page.getByRole('button', { name: /Couchtisch Beton/ }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.huelle').length === 0);
+  }
+  await expect(page.locator('path.g-m.rot')).toHaveCount(0);
+  // Ansicht weit wegschieben (leere Fläche ziehen), dann noch etwas holen
+  const b = await page.locator('.buehne svg').boundingBox();
+  await page.mouse.move(b.x + 30, b.y + b.height - 150); await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(b.x + 30 + i * 30, b.y + b.height - 150 - i * 40);
+  await page.mouse.up();
+  await page.getByRole('button', { name: 'Möbel', exact: true }).click();
+  await page.getByRole('button', { name: /Sessel Leder/ }).click();
+  const liste = await moebelImSpeicher(page, 6);
+  for (const m of liste) { expect(Math.abs(m.x)).toBeLessThanOrEqual(2.1); expect(Math.abs(m.z)).toBeLessThanOrEqual(1.8); }
+  await expect(page.locator('path.g-m.rot')).toHaveCount(0);
+});
+
+test('Übereinander: Antippen schaltet durch, gezogen wird das ausgewählte', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Testraum ansehen').click();
+  const sofa = await moebelMitte(page, 'Sofa 3-Sitzer'), tisch = await moebelMitte(page, 'Couchtisch');
+  const loslassen = await ziehe(page, sofa, tisch);
+  await loslassen();
+  await expect(page.locator('path.g-m.rot')).toHaveCount(2);
+  const kopf = page.locator('.blatt-kopf input');
+  // Sheet geht auf und die Ansicht rückt nach – darum die Stelle jedes Mal neu suchen
+  const tippe = async () => { await page.waitForTimeout(600); const p = await moebelMitte(page, 'Couchtisch'); await page.mouse.click(p.x, p.y); };
+  await tippe();                                    // Sofa war ausgewählt → jetzt der Tisch darunter
+  await expect(kopf).toHaveValue('Couchtisch');
+  await tippe();                                    // nochmal → wieder das Sofa
+  await expect(kopf).toHaveValue('Sofa 3-Sitzer');
+  await tippe();
+  await expect(kopf).toHaveValue('Couchtisch');
+  // der ausgewählte Tisch liegt unter dem Sofa – trotzdem wird er gezogen, die Überschneidung ist weg
+  await page.waitForTimeout(600);
+  const p = await moebelMitte(page, 'Couchtisch');
+  // gut einen Meter Richtung Fensterwand (Wand oben, 2 m entfernt): frei zwischen Sofa und Heizkörper
+  const oben = await page.evaluate(() => Math.min(...[...document.querySelectorAll('.buehne svg text.g-wandmass')].map(t => t.getBoundingClientRect().y)));
+  const weg = await ziehe(page, p, { x: p.x, y: p.y - (p.y - oben) * 0.55 });
+  await weg();
+  await expect(page.locator('path.g-m.rot')).toHaveCount(0);
+});

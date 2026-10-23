@@ -27,6 +27,9 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
   Kategorie (`src/kern/anzeige.js`), fehlende oder geschätzte Maße werden markiert, optional ein Foto (auf 512 px
   verkleinert, liegt im Raum und vorn auf dem Kasten in 3D). Kein Abruf per Link: Kleinanzeigen hat kein 3D, und
   ein Link bräuchte einen Durchreicher; ob Kleinanzeigen automatisches Abrufen erlaubt, ist ungeprüft.
+- Seit 23.10.2026 (Lukas' Test am iPhone): Neue Möbel suchen sich vom Bildschirmmittelpunkt aus den nächsten freien
+  Platz ganz im Raum (`freierPlatz`/`istFrei` im Kern), nie außerhalb und nie auf einem anderen Möbel. Liegen Möbel
+  übereinander, wird das ausgewählte gezogen und oben gezeichnet; erneutes Antippen schaltet der Reihe nach durch.
 - Später: IKEA-Abruf (Lukas, 23.10.2026: „IKEA kommt später“; wo der Durchreicher läuft, entscheidet er).
 - Kurswechsel 23.10.2026: Scannen fällt weg. Lukas fand die Scan-App nicht und will keine fremde App; ein Raum aus
   einem Video geht im Browser nicht zentimetergenau (kein LiDAR in Safari, kein Maßstab, Rechnen bräuchte einen Server).
