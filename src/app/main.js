@@ -11,6 +11,7 @@ import { raumMasse } from '../kern/raum.js';
 import { zieheAuf, ueberschneidungen, drehe, dreheFrei, setzeMasse, ersetze, dupliziere, stelleAuf, neueId } from '../kern/platzieren.js';
 import { neuerVerlauf, schritt, rueckgaengig, wiederholen, kannZurueck, kannVor } from '../kern/verlauf.js';
 import { raumText, cm } from '../kern/format.js';
+import { leseAnzeige } from '../kern/anzeige.js';
 
 const S = { schirm: null, doc: null, verlauf: null, auswahl: null, modus: 'grundriss', live: null, seiten: null, raumCache: null };
 const app = document.getElementById('app');
@@ -389,7 +390,7 @@ function moebelBlatt(id) {
   const seite = schalter(m().ausrichtung === 'seite', an => aendereMoebel(id, x => ({ ...x, ausrichtung: an ? 'seite' : undefined })), 'Seite an die Wand');
   const aktion = (symbol, text, klick, rot = false) => h('button.aktion' + (rot ? '.rot' : ''), { onclick: klick }, ico(symbol), h('span', text));
   const inhalt = h('div',
-    h('div.blatt-kopf', name, h('button.schliessen', { 'aria-label': 'Schließen', onclick: () => tippen(null) }, ico('x'))),
+    h('div.blatt-kopf', m().foto ? h('img.foto-klein', { src: m().foto, alt: '' }) : null, name, h('button.schliessen', { 'aria-label': 'Schließen', onclick: () => tippen(null) }, ico('x'))),
     h('div.inhalt',
       h('div.abschnitt', h('div.masse3', masse.map(x => x.el))),
       h('div.abschnitt', h('div.liste',
@@ -430,6 +431,7 @@ function katalogBlatt(ersetzeId = null) {
     liste.replaceChildren(
       oben ? h('div.abschnitt', h('div.liste',
         h('button.zeile.mit-ico', { onclick: () => datei.click() }, h('span.kachel', ico('kasten')), h('span.haupt', h('b', 'Eigenes 3D-Modell laden'), h('small', 'GLB oder USDZ, z. B. rundum fotografiert'))),
+        h('button.zeile.mit-ico', { onclick: () => anzeigeBlatt(ersetzeId) }, h('span.kachel', ico('link')), h('span.haupt', h('b', 'Aus einer Anzeige'), h('small', 'Text einfügen, z. B. von Kleinanzeigen'))),
         !ersetzeId && h('button.zeile.mit-ico', { onclick: () => waehle(EIGENES) }, h('span.kachel', ico('lineal')), h('span.haupt', h('b', 'Kasten mit eigenen Maßen'), h('small', 'Für alles, was es nicht als Modell gibt'))))) : null,
       h('div.abschnitt', zeilen.length ? h('div.liste', zeilen) : h('p.fuss', vorlagen.length ? 'Nichts gefunden' : 'Katalog lädt …')),
       h('div.abschnitt', h('h3', 'Kommt noch'), h('div.liste',
@@ -443,8 +445,6 @@ function katalogBlatt(ersetzeId = null) {
     h('div.inhalt',
       h('label.suche', ico('lupe'), h('input', { type: 'search', placeholder: 'Suchen', 'aria-label': 'Suchen', oninput: e => { text = e.target.value; zeichneListe(); } })),
       chips, liste, datei));
-  inhalt.style.cssText = 'display:flex;flex-direction:column;min-height:0;flex:1';
-  inhalt.querySelector('.inhalt').style.cssText = 'overflow-y:auto;flex:1';
   zeichneChips(); zeichneListe();
   oeffneBlatt(inhalt, { hoch: true });
   alleVorlagen().then(l => { vorlagen = l; zeichneListe(); });
@@ -454,20 +454,96 @@ function katalogBlatt(ersetzeId = null) {
 
 /** Vorlage in den Raum stellen oder ein Möbel damit ersetzen. */
 function setzeVorlage(v, ersetzeId = null) {
-  const vorlage = { name: v.name, kategorie: v.kategorie, b: v.b, t: v.t, h: v.h, quelle: v.quelle === 'eigen' ? 'eigen' : 'katalog', modell: v.modell ?? null };
+  const vorlage = { name: v.name, kategorie: v.kategorie, b: v.b, t: v.t, h: v.h, quelle: ['eigen', 'anzeige'].includes(v.quelle) ? v.quelle : 'katalog', modell: v.modell ?? null };
+  const mitFoto = m => { const n = { ...m }; if (v.foto) n.foto = v.foto; else delete n.foto; return n; };
   if (ersetzeId) {
     const alt = S.doc.moebel.find(x => x.id === ersetzeId);
-    const { moebel, unterschied } = ersetze(alt, vorlage);
+    const { moebel: ersetzt, unterschied } = ersetze(alt, vorlage), moebel = mitFoto(ersetzt);
     S.doc.moebel = S.doc.moebel.map(x => (x.id === ersetzeId ? moebel : x));
     schrittMachen(); schliesseBlatt(true);
     hinweis(unterschied.join(' · '));
     tippen(ersetzeId);
     return;
   }
-  const m = stelleAuf(vorlage, P.plan.mitte(), raumVon(S.doc));
+  const m = mitFoto(stelleAuf(vorlage, P.plan.mitte(), raumVon(S.doc)));
   S.doc.moebel.push(m); S.auswahl = m.id;
   schrittMachen(); schliesseBlatt(true); zeichnePlan();
   if (v === EIGENES) tippen(m.id);
+}
+
+/* ---------- Aus einer Anzeige: Text einfügen, Name und Maße erkennen, optional ein Foto, als Kasten in echter Größe ---------- */
+function anzeigeBlatt(ersetzeId = null) {
+  const werte = { name: '', kategorie: 'sonst', b: null, t: null, h: null };
+  let geraten = new Set(), foto = null;
+  const name = h('input.text', { type: 'text', placeholder: 'Name', 'aria-label': 'Name', oninput: e => { werte.name = e.target.value; } });
+  const felder = {}, label = { b: 'Breite', t: 'Tiefe', h: 'Höhe' };
+  const masse = h('div.masse3', ['b', 't', 'h'].map(k => {
+    felder[k] = cmFeld(null, v => { werte[k] = v; geraten.delete(k); pruefen(); }, { label: label[k] });
+    return h('label', h('small', label[k]), felder[k]);
+  }));
+  const hinweisZeile = h('p.fuss');
+  const knopf = h('button.knopf', { onclick: uebernehmen }, ersetzeId ? 'Damit ersetzen' : 'In den Raum stellen');
+  const text = h('textarea.anzeige', { rows: 6, placeholder: 'Titel und Beschreibung der Anzeige hier einfügen', 'aria-label': 'Anzeigentext', oninput: lesen });
+  const bild = h('img.foto', { alt: 'Foto aus der Anzeige', hidden: true });
+  const fotoDatei = h('input', { type: 'file', accept: 'image/*', class: 'versteckt', 'aria-label': 'Foto aus der Anzeige', onchange: async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try { foto = await verkleinern(f, 512); bild.src = foto; bild.hidden = false; fotoKnopf.querySelector('b').textContent = 'Anderes Foto'; entfernen.hidden = false; }
+    catch { hinweis('Das Foto lässt sich nicht lesen'); }
+  } });
+  const fotoKnopf = h('button.zeile.akzent', { type: 'button', onclick: () => fotoDatei.click() }, h('span.haupt', h('b', 'Foto dazu (optional)')));
+  const entfernen = h('button.zeile.rot', { type: 'button', hidden: true, onclick: () => { foto = null; bild.hidden = true; entfernen.hidden = true; fotoKnopf.querySelector('b').textContent = 'Foto dazu (optional)'; } }, h('span.haupt', h('b', 'Foto entfernen')));
+
+  function lesen() {
+    const a = leseAnzeige(text.value);
+    werte.kategorie = a.kategorie;
+    if (!name.dataset.selbst) { werte.name = text.value.trim() ? a.name : ''; name.value = werte.name; }
+    for (const k of ['b', 't', 'h']) {
+      werte[k] = a[k];
+      felder[k].querySelector('input').value = a[k] ? String(Math.round(a[k] * 1000) / 10).replace('.', ',') : '';
+    }
+    geraten = new Set(a.geraten);
+    pruefen();
+  }
+  function pruefen() {
+    const fehlt = ['b', 't', 'h'].filter(k => !(werte[k] > 0));
+    knopf.disabled = fehlt.length > 0;
+    for (const k of ['b', 't', 'h']) felder[k].closest('label').classList.toggle('pruefen', fehlt.includes(k) || geraten.has(k));
+    hinweisZeile.className = 'fuss' + (fehlt.length ? ' rot' : '');
+    hinweisZeile.textContent = !text.value.trim() ? '' : fehlt.length ? `${fehlt.map(k => label[k]).join(', ')} nicht gefunden – bitte eintippen.`
+      : geraten.size ? `${[...geraten].map(k => label[k]).join(', ')} geschätzt – bitte prüfen.` : 'Maße aus der Anzeige übernommen.';
+  }
+  function uebernehmen() {
+    if (knopf.disabled) return;
+    setzeVorlage({ name: werte.name.trim() || 'Möbel aus Anzeige', kategorie: werte.kategorie, b: werte.b, t: werte.t, h: werte.h, quelle: 'anzeige', foto }, ersetzeId);
+  }
+  name.addEventListener('input', () => { name.dataset.selbst = '1'; });
+
+  const zwischenablage = navigator.clipboard?.readText
+    ? h('button.chip', { type: 'button', onclick: async () => { try { text.value = await navigator.clipboard.readText(); lesen(); } catch { text.focus(); } } }, 'Aus der Zwischenablage einfügen')
+    : null;
+  oeffneBlatt(h('div',
+    h('div.blatt-kopf', h('h2', 'Aus einer Anzeige'), h('button.schliessen', { 'aria-label': 'Schließen', onclick: () => schliesseBlatt() }, ico('x'))),
+    h('div.inhalt',
+      h('div.abschnitt', text, zwischenablage && h('div.chips', { style: 'margin-top:10px' }, zwischenablage)),
+      h('div.abschnitt', h('h3', 'Erkannt'), h('div.liste', h('label.zeile', name)), h('div', { style: 'height:10px' }), masse, hinweisZeile),
+      h('div.abschnitt', h('div.liste', fotoKnopf, entfernen), bild, fotoDatei),
+      knopf)), { hoch: true });
+  pruefen();
+}
+
+/** Foto auf höchstens `max` px verkleinern, als JPEG-Daten-URL (bleibt im Raum gespeichert). */
+async function verkleinern(datei, max) {
+  const url = URL.createObjectURL(datei);
+  try {
+    const img = await new Promise((ok, fehler) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fehler; i.src = url; });
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); // durchsichtige PNGs nicht schwarz werden lassen
+    g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.82);
+  } finally { URL.revokeObjectURL(url); }
 }
 
 /* ---------- Eigenes 3D-Modell: auf den Boden, Vorderseite festlegen, auf echte Breite bringen ---------- */

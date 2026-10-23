@@ -23,6 +23,10 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
 - Seit 23.10.2026 auf `main` (von Lukas abgenommen): Katalog mit 29 echten Modellen (16 Poly Haven,
   13 Kenney) mit Vorschaubildern, 3D-Ansicht zeigt die Modelle, eigene GLB/USDZ laden (Vorderseite festlegen,
   per Breite auf echte Größe), eigene Modelle wandern mit in die Raum-Datei.
+- Seit 23.10.2026 auf `main`: „Aus einer Anzeige“ – Anzeigentext (z. B. Kleinanzeigen) einfügen, Kern liest Name, Maße und
+  Kategorie (`src/kern/anzeige.js`), fehlende oder geschätzte Maße werden markiert, optional ein Foto (auf 512 px
+  verkleinert, liegt im Raum und vorn auf dem Kasten in 3D). Kein Abruf per Link: Kleinanzeigen hat kein 3D, und
+  ein Link bräuchte einen Durchreicher; ob Kleinanzeigen automatisches Abrufen erlaubt, ist ungeprüft.
 - Später: IKEA-Abruf (Lukas, 23.10.2026: „IKEA kommt später“; wo der Durchreicher läuft, entscheidet er).
 - Kurswechsel 23.10.2026: Scannen fällt weg. Lukas fand die Scan-App nicht und will keine fremde App; ein Raum aus
   einem Video geht im Browser nicht zentimetergenau (kein LiDAR in Safari, kein Maßstab, Rechnen bräuchte einen Server).
@@ -105,6 +109,9 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
 - Geht eine freie Form nicht auf, wird der Fehler anteilig auf alle Ecken verteilt und angezeigt („3 cm offen“).
 - Ein Möbel, das über die Wand hinaus gezogen wird, bleibt im Raum und rastet an dieser Wand ein. Bündig an ein
   Nachbarmöbel rastet es nur bis 12 cm Abstand oder Überlappung; tiefer hineingezogen bleibt es sichtbar überschnitten.
+- Anzeige lesen: Maßketten ohne Beschriftung gelten als B × T × H (als geschätzt markiert), „L × B × H“ heißt Breite ×
+  Tiefe × Höhe, Sitz- und Liegemaße zählen nicht; Bett aus Liegefläche: Rahmen +6 cm breit, +8 cm lang, 45 cm hoch
+  (geschätzt). Fehlt die Höhe, gilt eine übliche je Kategorie (Sofa 85, Tisch 75, Schrank 100 cm …), ebenfalls markiert.
 - Raum-Datei: `<Name>.raumplan.json`; am iPhone über das Teilen-Blatt („In Dateien sichern“, AirDrop), am Mac Download.
   Ab Version 2 stecken eigene Modelle, die im Raum stehen, als Base64 mit drin.
 - Eigene Modelle: höchstens 80 MB, GLB (auch Draco/Meshopt) oder USDZ. Maßstab bleibt beim Drehen der Vorderseite

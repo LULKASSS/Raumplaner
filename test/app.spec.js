@@ -199,3 +199,44 @@ test('Eigenes Modell: GLB und USDZ laden, Breite eintippen, mit Datei aufs ander
   await expect(anderes.locator('.buehne[data-modelle]')).toHaveAttribute('data-modelle', '5', { timeout: 15_000 });
   expect(fehler2).toEqual([]);
 });
+
+test('Aus einer Anzeige: Text einfügen, Maße erkannt, Foto dazu, als Kasten in den Raum', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Testraum ansehen').click();
+  await page.getByRole('button', { name: 'Möbel', exact: true }).click();
+  await page.getByRole('button', { name: /Aus einer Anzeige/ }).click();
+  const knopf = page.getByRole('button', { name: 'In den Raum stellen' });
+  await expect(knopf).toBeDisabled();
+  // erfundene Anzeige ohne Höhe
+  await page.getByLabel('Anzeigentext').fill('Ecksofa grau, kaum benutzt | Kleinanzeigen\n250 € VB\nMaße: Breite 230 cm, Tiefe 95 cm');
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Ecksofa grau, kaum benutzt');
+  await expect(page.getByLabel('Breite')).toHaveValue('230');
+  await expect(page.getByLabel('Tiefe')).toHaveValue('95');
+  await expect(page.getByLabel('Höhe')).toHaveValue('85');   // geschätzt (Sofa)
+  await expect(page.locator('.blatt .fuss').filter({ hasText: 'Höhe geschätzt' })).toBeVisible();
+  await page.getByLabel('Höhe').fill('');
+  await expect(knopf).toBeDisabled();
+  await page.getByLabel('Höhe').fill('78');
+  await expect(knopf).toBeEnabled();
+  await page.getByLabel('Foto aus der Anzeige').setInputFiles('icon-180.png');
+  await expect(page.locator('img.foto')).toBeVisible();
+  await knopf.click();
+  await page.waitForFunction(() => document.querySelectorAll('.huelle').length === 0);
+  await expect(page.locator('.buehne svg path.g-m title', { hasText: 'Ecksofa grau, kaum benutzt' })).toHaveCount(1);
+  await page.getByRole('tab', { name: '3D' }).click();
+  await expect(page.locator('.buehne canvas')).toBeVisible();
+  await page.waitForTimeout(800);
+});
+
+test('Gescanntes oder geplantes Sofa durch eine Anzeige ersetzen: Unterschied wird gezeigt', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Testraum ansehen').click();
+  const sofa = await moebelMitte(page, 'Sofa 3-Sitzer');
+  await page.mouse.click(sofa.x, sofa.y);
+  await page.getByRole('button', { name: 'Ersetzen' }).click();
+  await page.getByRole('button', { name: /Aus einer Anzeige/ }).click();
+  await page.getByLabel('Anzeigentext').fill('Big Sofa Cord\nB x T x H: 222 x 95 x 82 cm');
+  await page.getByRole('button', { name: 'Damit ersetzen' }).click();
+  await expect(page.locator('#toast')).toHaveText('12 cm breiter · 3 cm tiefer');
+  await expect(page.locator('.blatt-kopf input')).toHaveValue('Big Sofa Cord');
+});

@@ -95,7 +95,15 @@ export function erstelle3D(el, o) {
     const g = new THREE.Group();
     g.userData = { id: m.id, fest: !!m.fest };
     const geo = new THREE.BoxGeometry(m.b, m.h, m.t); geo.translate(0, m.h / 2, 0);
-    const box = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: m.fest ? c.fest : c.normal, roughness: 0.8 }));
+    const grundfarbe = () => new THREE.MeshStandardMaterial({ color: m.fest ? c.fest : c.normal, roughness: 0.8 });
+    // Foto aus einer Anzeige auf die Vorderseite (+Z, Fläche 4 des Würfels)
+    let material = grundfarbe();
+    if (m.foto && !m.modell) {
+      const vorn = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+      new THREE.TextureLoader().load(m.foto, tex => { tex.colorSpace = THREE.SRGBColorSpace; vorn.map = tex; vorn.needsUpdate = true; });
+      material = [grundfarbe(), grundfarbe(), grundfarbe(), grundfarbe(), vorn, grundfarbe()];
+    }
+    const box = new THREE.Mesh(geo, material);
     box.castShadow = true; box.receiveShadow = true;
     const rahmen = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: c.rand, transparent: true, opacity: 0.9 }));
     const warn = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: c.rot, transparent: true, opacity: 0.3, depthWrite: false }));
@@ -123,7 +131,7 @@ export function erstelle3D(el, o) {
     const da = new Set();
     for (const m of daten.raum.moebel) {
       da.add(m.id);
-      const schluessel = JSON.stringify([m.modell, m.b, m.t, m.h, m.fest]);
+      const schluessel = JSON.stringify([m.modell, m.b, m.t, m.h, m.fest, m.foto ? m.foto.length + m.foto.slice(-24) : '']);
       let t = teile.get(m.id);
       if (!t || t.schluessel !== schluessel) { if (t) entferne(t); t = neuesTeil(m, schluessel, c); teile.set(m.id, t); }
       t.g.position.set(m.x, m.ueberBoden || 0, m.z);
@@ -143,7 +151,7 @@ export function erstelle3D(el, o) {
       t.rahmen.material.color.copy(rot ? c.rot : wahl ? c.wahl : c.rand);
       t.rahmen.visible = rot || wahl || !t.modell;
       t.warn.visible = rot;
-      if (!t.modell) t.box.material.color.copy(wahl ? c.wahl : m.fest ? c.fest : c.normal);
+      if (!t.modell) for (const mat of [].concat(t.box.material)) if (!mat.map) mat.color.copy(wahl ? c.wahl : m.fest ? c.fest : c.normal);
     }
   }
 

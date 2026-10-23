@@ -10,7 +10,8 @@ stellen – im Grundriss oder in 3D. Läuft im Browser, am iPhone wie eine App v
 1. **Raum ausmessen:** Länge und Breite eintippen (oder Wand für Wand bei anderen Formen), dazu Türen, Fenster,
    Durchgänge und Heizkörper.
 2. **Möbel holen:** „+ Möbel“, aus dem Katalog wählen, ein eigenes 3D-Modell laden (GLB oder USDZ, z. B. aus einer
-   App, mit der man ein Möbelstück rundum fotografiert) oder einen Kasten mit eigenen Maßen anlegen.
+   App, mit der man ein Möbelstück rundum fotografiert), den Text einer Anzeige (z. B. Kleinanzeigen) einfügen – Name
+   und Maße werden erkannt – oder einen Kasten mit eigenen Maßen anlegen.
 3. **Platzieren:** mit einem Finger ziehen – an der Wand rastet es ein, die Abstände stehen in Zentimetern daneben.
    Antippen öffnet Maße, Drehen, Duplizieren, Ersetzen und Löschen. Rot schraffiert heißt: überschneidet sich.
 

@@ -64,7 +64,7 @@ button{background:none;border:0;padding:0;cursor:pointer;touch-action:manipulati
 input{-webkit-appearance:none;appearance:none;border:0;background:none;outline:none;margin:0;min-width:0}
 svg{display:block}
 .ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.versteckt{display:none!important}
+.versteckt,[hidden]{display:none!important}
 
 /* Schirme schieben wie bei iOS */
 .schirm{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);transition:transform .5s var(--ease),opacity .5s var(--ease)}
@@ -212,7 +212,10 @@ button.zeile:active{background:var(--fill)}
 .blatt-kopf input,.blatt-kopf h2{flex:1;font-size:22px;font-weight:700;margin:0;padding:4px 0;min-width:0;letter-spacing:-.01em}
 .schliessen{width:30px;height:30px;border-radius:15px;background:var(--fill);color:var(--label-2);display:grid;place-items:center;flex:none}
 .schliessen .ico{width:14px;height:14px;stroke-width:3}
-.blatt .inhalt{padding:4px 16px calc(var(--unten) + 16px);overflow-y:auto;min-height:0}
+/* Inhalt eines Sheets scrollt, wenn er höher ist als der Platz (sonst wäre der Knopf unten am iPhone nicht erreichbar) */
+.blatt>div:last-child{display:flex;flex-direction:column;min-height:0;flex:0 1 auto}
+.blatt.hoch>div:last-child{flex:1 1 auto}
+.blatt .inhalt{padding:4px 16px calc(var(--unten) + 16px);overflow-y:auto;min-height:0;flex:1 1 auto;-webkit-overflow-scrolling:touch}
 .blatt .abschnitt{margin-bottom:14px}
 .masse3{display:grid;grid-template-columns:repeat(3,1fr);background:var(--bg-2);border-radius:12px;overflow:hidden}
 .masse3 label{display:flex;flex-direction:column;align-items:center;padding:7px 4px 6px;position:relative}
@@ -243,6 +246,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;heigh
 .modell-vorschau{height:240px;border-radius:12px;background:var(--plan-grund);overflow:hidden}
 .modell-vorschau canvas{width:100%;height:100%;display:block}
 .quellen{text-align:center;margin-top:-8px}
+textarea.anzeige{display:block;width:100%;min-height:128px;resize:vertical;border:0;outline:none;border-radius:12px;background:var(--bg-2);color:var(--label);
+  font:16px/1.35 var(--font);padding:12px 14px;caret-color:var(--accent)}
+textarea.anzeige::placeholder{color:var(--label-3)}
+textarea.anzeige:focus{box-shadow:0 0 0 2px var(--accent-line)}
+.masse3 label.pruefen{background:var(--accent-soft)}
+.fuss.rot{color:var(--rot-ink)}
+img.foto{display:block;max-width:100%;max-height:220px;margin:12px auto 0;border-radius:12px}
+img.foto-klein{width:40px;height:40px;border-radius:8px;object-fit:cover;flex:none}
 
 /* Hinweis oben */
 .toast{position:fixed;z-index:40;left:50%;top:calc(var(--oben) + 122px);transform:translate(-50%,-30px);opacity:0;padding:10px 18px;border-radius:22px;background:var(--glas);
