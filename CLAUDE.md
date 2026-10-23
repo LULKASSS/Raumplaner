@@ -13,20 +13,23 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
 - Nicht gewollt: eigene native App (kein Apple-Entwicklerkonto), fremde Scan-App, Speicherung auf einem Server
 
 ## Stand (23.10.2026)
-- Klickbarer Entwurf steht, **nicht committet**, wartet auf Lukas' Okay (am iPhone über `npm run dev` im WLAN und am Mac).
+- Erster Aufschlag von Lukas abgenommen und auf `main` (23.10.2026). Läuft auf GitHub Pages:
+  https://lulkasss.github.io/Raumplaner/ (Pages baut direkt aus `main`, Wurzelordner).
 - Kann: Raum ausmessen (Rechteck mit Gegenprobe oder Wand für Wand, Türen mit Aufschlag/Angeln, Fenster,
   Durchgänge, Heizkörper), Grundriss und 3D, Möbel aus dem Katalog reinziehen, Einrasten an Wand/Ecke/Möbel,
   Abstände in cm beim Ziehen, Überschneidung rot + schraffiert, Möbel-Sheet (Maße, 15°-Drehen, frei drehen,
   Seite an die Wand, Duplizieren, Ersetzen mit „12 cm breiter“, Löschen), Rückgängig/Wiederholen, automatisch
   speichern (IndexedDB), Raum als Datei sichern/öffnen, Testraum, Home-Bildschirm (Manifest, Symbol).
 - Noch nicht: echte 3D-Modelle (Poly Haven, Kenney), eigene GLB/USDZ, IKEA-Abruf mit Durchreicher – im Katalog
-  als „Kommt noch“ sichtbar. GitHub Pages und README erst nach Lukas' Okay.
+  als „Kommt noch“ sichtbar. Nächste Schritte laut Auftrag: Katalog mit echten Modellen (Quellen und Lizenzen
+  je Modell), eigene Modelle hochladen, IKEA-Abruf (wo der Durchreicher läuft, entscheidet Lukas).
 - Kurswechsel 23.10.2026: Scannen fällt weg. Lukas fand die Scan-App nicht und will keine fremde App; ein Raum aus
   einem Video geht im Browser nicht zentimetergenau (kein LiDAR in Safari, kein Maßstab, Rechnen bräuchte einen Server).
   Der Import aus CapturedRoom-JSON bleibt im Kern, die Oberfläche bietet ihn nicht an.
 
 ## Aufbau
-- `index.html` – Seite, CSS (Tokens hell/dunkel, iOS-Bausteine) und Importmap; kein Bundler.
+- `index.html` – Seite, CSS (Tokens hell/dunkel, iOS-Bausteine) und Importmap; kein Bundler. GitHub Pages liefert
+  das Repo 1:1 aus, alle Pfade relativ.
 - `src/app/` – Oberfläche als ES-Module: `main.js` (Zustand, Schirme Start/Ausmessen/Planen, Sheets),
   `grundriss.js` (SVG-Grundriss, Finger/Maus, Zoomen), `ansicht3d.js` (three.js, wird erst beim Umschalten geladen),
   `ui.js` (Segment, Schalter, Zahlfeld, Bottom Sheet, Hinweis), `speicher.js` (IndexedDB), `katalog.js`, `testraum.js`.
