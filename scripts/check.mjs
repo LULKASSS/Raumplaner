@@ -27,12 +27,22 @@ for (const f of files) {
   if (f.startsWith('proben/')) errors.push(`Echte Probe im Repo: ${f} (proben/ bleibt lokal)`);
   if (/\.(usdz|usdc|usda|glb|gltf|obj|ply|reality)$/i.test(f) && !modellErlaubt(f)) errors.push(`Modell außerhalb von test/daten/ oder katalog/: ${f}`);
   if (/\.(pdf|xlsx?|docx?|heic|jpe?g)$/i.test(f) && !modellErlaubt(f)) errors.push(`Dokument oder Foto im Repo: ${f}`);
-  if (/\.png$/i.test(f) && !/^icon-\d+\.png$/.test(f)) errors.push(`Bild im Repo: ${f} (nur die App-Symbole gehören hierher)`);
+  if (/\.png$/i.test(f) && !/^icon-\d+\.png$/.test(f) && !f.startsWith('katalog/vorschau/')) errors.push(`Bild im Repo: ${f} (nur die App-Symbole gehören hierher)`);
   if (/\.(js|mjs|html|md|json|yml)$/.test(f) && !f.startsWith('vendor/')) {
     const t = await readFile(root + f, 'utf8').catch(() => '');
     if (/gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-ant-[A-Za-z0-9-]{20,}|sb_secret_[A-Za-z0-9_-]{10,}/.test(t)) errors.push(`Möglicher Zugangsschlüssel in ${f}`);
   }
 }
+
+/* Katalog: jedes Modell mit Quelle, Lizenz (nur CC0) und Stand, Datei und Vorschau vorhanden */
+try {
+  const { modelle } = JSON.parse(await readFile(root + 'katalog/katalog.json', 'utf8'));
+  for (const m of modelle) {
+    for (const k of ['quelle', 'lizenz', 'stand', 'datei', 'vorschau', 'b', 't', 'h']) if (m[k] == null) errors.push(`Katalog ${m.id}: ${k} fehlt`);
+    if (m.lizenz !== 'CC0 1.0') errors.push(`Katalog ${m.id}: Lizenz ${m.lizenz} – nur CC0 gehört ins Repo`);
+    for (const k of ['datei', 'vorschau']) if (m[k] && !files.includes(m[k])) errors.push(`Katalog ${m.id}: ${m[k]} fehlt im Repo`);
+  }
+} catch (e) { errors.push('katalog/katalog.json fehlt oder ist kaputt: ' + e.message); }
 
 /* 3. Seite: Grundgerüst, keine doppelten IDs, keine CDNs zur Laufzeit */
 const html = await readFile(root + 'index.html', 'utf8');

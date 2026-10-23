@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { sub, dot, einheit, laenge, huelle, rad } from '../kern/geometrie.js';
 import { innenNormale } from '../kern/raum.js';
+import { modellFuer } from './modelle.js';
 
 const DICKE = 0.1;
 const farbe = name => new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888');
@@ -85,22 +86,64 @@ export function erstelle3D(el, o) {
     }
   }
 
+  // Möbel bleiben stehen und werden nur verschoben; neu gebaut wird ein Teil nur, wenn Modell oder Maße sich ändern
+  const teile = new Map();
+  const idVon = x => { while (x && !x.userData?.id) x = x.parent; return x?.userData; };
+  function entferne(t) { moebelGruppe.remove(t.g); t.g.traverse(x => { if (!x.userData?.geteilt) { x.geometry?.dispose(); x.material?.dispose?.(); } }); }
+
+  function neuesTeil(m, schluessel, c) {
+    const g = new THREE.Group();
+    g.userData = { id: m.id, fest: !!m.fest };
+    const geo = new THREE.BoxGeometry(m.b, m.h, m.t); geo.translate(0, m.h / 2, 0);
+    const box = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: m.fest ? c.fest : c.normal, roughness: 0.8 }));
+    box.castShadow = true; box.receiveShadow = true;
+    const rahmen = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: c.rand, transparent: true, opacity: 0.9 }));
+    const warn = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: c.rot, transparent: true, opacity: 0.3, depthWrite: false }));
+    warn.scale.setScalar(1.01); warn.visible = false;
+    g.add(box, rahmen, warn);
+    const t = { g, schluessel, box, rahmen, warn, modell: false };
+    if (m.modell) {
+      // solange das Modell lädt: durchsichtiger Kasten in echter Größe
+      box.material.transparent = true; box.material.opacity = 0.35;
+      modellFuer(m.modell).then(({ gruppe, masse }) => {
+        if (teile.get(m.id) !== t) return;
+        gruppe.scale.set(m.b / masse.b, m.h / masse.h, m.t / masse.t);
+        gruppe.traverse(x => { x.userData.geteilt = true; });
+        g.add(gruppe); box.visible = false; t.modell = true;
+        el.dataset.modelle = String(+(el.dataset.modelle || 0) + 1); // für Tests: so viele Modelle sind da
+        if (daten) zustand();
+      }).catch(e => { box.material.transparent = false; box.material.opacity = 1; o.beiFehler?.(e.message); });
+    }
+    moebelGruppe.add(g);
+    return t;
+  }
+
   function baueMoebel() {
-    leeren(moebelGruppe);
+    const c = { normal: farbe('--plan-moebel'), fest: farbe('--plan-fest'), rand: farbe('--plan-moebel-rand'), rot: farbe('--rot') };
+    const da = new Set();
+    for (const m of daten.raum.moebel) {
+      da.add(m.id);
+      const schluessel = JSON.stringify([m.modell, m.b, m.t, m.h, m.fest]);
+      let t = teile.get(m.id);
+      if (!t || t.schluessel !== schluessel) { if (t) entferne(t); t = neuesTeil(m, schluessel, c); teile.set(m.id, t); }
+      t.g.position.set(m.x, m.ueberBoden || 0, m.z);
+      t.g.rotation.y = rad(m.winkel);
+    }
+    for (const [id, t] of teile) if (!da.has(id)) { entferne(t); teile.delete(id); }
+    zustand();
+  }
+
+  /** Auswahl (Flieder-Rahmen) und Überschneidung (rot) anzeigen. */
+  function zustand() {
     const { raum, auswahl, kollisionen = {} } = daten;
     const c = { normal: farbe('--plan-moebel'), fest: farbe('--plan-fest'), wahl: farbe('--accent'), rot: farbe('--rot'), rand: farbe('--plan-moebel-rand') };
     for (const m of raum.moebel) {
-      const rot = kollisionen[m.id] && !m.fest, wahl = m.id === auswahl;
-      const mat = new THREE.MeshStandardMaterial({ color: rot ? c.rot : wahl ? c.wahl : m.fest ? c.fest : c.normal, roughness: 0.8 });
-      const geo = new THREE.BoxGeometry(m.b, m.h, m.t), koerper = new THREE.Mesh(geo, mat);
-      koerper.castShadow = true; koerper.receiveShadow = true;
-      const kanten = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: c.rand, transparent: true, opacity: 0.6 }));
-      const g = new THREE.Group();
-      g.add(koerper, kanten);
-      g.position.set(m.x, (m.ueberBoden || 0) + m.h / 2, m.z);
-      g.rotation.y = rad(m.winkel);
-      g.userData = { id: m.id, fest: !!m.fest };
-      moebelGruppe.add(g);
+      const t = teile.get(m.id); if (!t) continue;
+      const rot = !!kollisionen[m.id] && !m.fest, wahl = m.id === auswahl;
+      t.rahmen.material.color.copy(rot ? c.rot : wahl ? c.wahl : c.rand);
+      t.rahmen.visible = rot || wahl || !t.modell;
+      t.warn.visible = rot;
+      if (!t.modell) t.box.material.color.copy(wahl ? c.wahl : m.fest ? c.fest : c.normal);
     }
   }
 
@@ -157,8 +200,8 @@ export function erstelle3D(el, o) {
     zeiger++;
     if (zeiger > 1) { if (geste?.bewegt) o.beiZiehen?.(geste.id, null, 'ende'); geste = null; steuerung.enabled = true; return; }
     treffer(e);
-    const hit = strahl.intersectObjects(moebelGruppe.children, true).find(x => !x.object.parent.userData.fest);
-    const id = hit?.object.parent.userData.id;
+    const hit = strahl.intersectObjects(moebelGruppe.children, true).map(x => idVon(x.object)).find(d => d && !d.fest);
+    const id = hit?.id;
     geste = { id, x: e.clientX, y: e.clientY, bewegt: false };
     if (id) {
       steuerung.enabled = false;
@@ -189,6 +232,6 @@ export function erstelle3D(el, o) {
       aktiv = an;
       if (an) { groesse(); if (!eingepasst && daten) einpassen(); renderer.setAnimationLoop(bild); } else renderer.setAnimationLoop(null);
     },
-    farbenNeu() { raumSchluessel = ''; if (daten) zeichne(daten); }
+    farbenNeu() { raumSchluessel = ''; for (const t of teile.values()) entferne(t); teile.clear(); if (daten) zeichne(daten); }
   };
 }

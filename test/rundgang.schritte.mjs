@@ -21,10 +21,10 @@ export default async (page, foto) => {
   await page.getByRole('button', { name: 'Möbel', exact: true }).click();
   await page.waitForTimeout(600);
   await foto('katalog');
-  await page.getByText('Sofa 3-Sitzer').click();
+  await page.getByText('Sofa schlicht').click();
   await page.waitForTimeout(600);
   const p = await page.evaluate(() => {
-    const b = [...document.querySelectorAll('.buehne svg text.g-name')].find(t => t.textContent === 'Sofa 3-Sitzer').getBoundingClientRect();
+    const b = [...document.querySelectorAll('.buehne svg text.g-name')].find(t => t.textContent === 'Sofa schlicht').getBoundingClientRect();
     return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
   });
   await page.mouse.move(p.x, p.y); await page.mouse.down();
@@ -32,7 +32,7 @@ export default async (page, foto) => {
   await foto('ziehen');
   await page.mouse.up();
   const q = await page.evaluate(() => {
-    const b = [...document.querySelectorAll('.buehne svg text.g-name')].find(t => t.textContent === 'Sofa 3-Sitzer').getBoundingClientRect();
+    const b = [...document.querySelectorAll('.buehne svg text.g-name')].find(t => t.textContent === 'Sofa schlicht').getBoundingClientRect();
     return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
   });
   await page.mouse.click(q.x, q.y);

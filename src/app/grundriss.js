@@ -119,7 +119,7 @@ export function erstelleGrundriss(el, o) {
     for (const m of raum.moebel) {
       const poly = grundflaeche(m), d = pfad(poly), wahl = m.id === daten.auswahl, getroffen = !!rot[m.id] && !m.fest;
       const klasse = ['g-m', m.fest ? 'fest' : '', getroffen ? 'rot' : wahl ? 'wahl' : ''].join(' ');
-      teile.push(`<path class="${klasse}" d="${d}"/>`);
+      teile.push(`<path class="${klasse}" d="${d}"><title>${esc(m.name || 'Möbel')}</title></path>`);
       if (m.fest) teile.push(`<path class="g-schraffur-fest" d="${d}"/>`);
       if (getroffen) teile.push(`<path class="g-schraffur" d="${d}"/>`);
       if (!m.fest && m.t * s > 18) {

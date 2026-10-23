@@ -2,8 +2,8 @@
 // Rechnen (Raum aus Maßen, Einrasten, Überschneidung) kommt aus src/kern/, Zeichnen aus grundriss.js / ansicht3d.js.
 
 import { h, ico, segment, schalter, cmFeld, oeffneBlatt, schliesseBlatt, blattOffen, hinweis } from './ui.js';
-import { alleRaeume, ladeRaum, speichereRaum, loescheRaum, nurImSpeicher } from './speicher.js';
-import { KATEGORIEN, EIGENES, suche } from './katalog.js';
+import { alleRaeume, ladeRaum, speichereRaum, loescheRaum, nurImSpeicher, ladeModellDaten, speichereModell } from './speicher.js';
+import { KATEGORIEN, EIGENES, alleVorlagen, filtere } from './katalog.js';
 import { TESTRAUM } from './testraum.js';
 import { erstelleGrundriss } from './grundriss.js';
 import { raumAusMassen, pruefeMessung, gegenprobe, ecken, wandKette, STANDARD, ELEMENT_NAMEN } from '../kern/ausmessen.js';
@@ -88,6 +88,7 @@ async function dateiOeffnen(datei) {
     if (roh.format !== 'raumplaner-raum' || !roh.raum?.messung) throw new Error('Das ist keine Raum-Datei aus dem Raumplaner');
     const fehler = pruefeMessung(roh.raum.messung);
     if (fehler.length) throw new Error(fehler[0]);
+    for (const m of roh.modelle || []) if (!(await ladeModellDaten(m.id))) await speichereModell({ ...m, daten: ausBase64(m.daten) });
     const vorhanden = await ladeRaum(roh.raum.id);
     const doc = await speichereRaum({ ...roh.raum, id: vorhanden ? neueId() : roh.raum.id, moebel: roh.raum.moebel || [] });
     hinweis(`${doc.name || 'Raum'} geöffnet`, { ok: true });
@@ -313,7 +314,7 @@ function modusWechsel(m) {
   P.dreiEl.classList.toggle('versteckt', m !== '3d');
   if (m === '3d' && !P.drei) {
     import('./ansicht3d.js').then(({ erstelle3D }) => {
-      P.drei = erstelle3D(P.dreiEl, { beiTippen: tippen, beiZiehen: ziehen });
+      P.drei = erstelle3D(P.dreiEl, { beiTippen: tippen, beiZiehen: ziehen, beiFehler: t => hinweis(t) });
       P.drei.aktiv(true); zeichnePlan();
     }).catch(() => hinweis('3D lässt sich hier nicht anzeigen'));
   }
@@ -415,18 +416,25 @@ function moebelBlatt(id) {
 
 /* ---------- Katalog ---------- */
 function katalogBlatt(ersetzeId = null) {
-  let kat = null, text = '';
+  let kat = null, text = '', vorlagen = [];
   const liste = h('div');
+  const datei = h('input', { type: 'file', accept: '.glb,.usdz,model/gltf-binary,model/vnd.usdz+zip', class: 'versteckt', 'aria-label': 'Eigenes 3D-Modell',
+    onchange: e => { const f = e.target.files[0]; e.target.value = ''; if (f) eigenesModellBlatt(f, ersetzeId); } });
+  const masseText = v => `${Math.round(v.b * 100)} × ${Math.round(v.t * 100)} × ${Math.round(v.h * 100)} cm`;
+  const bild = v => v.vorschau ? h('img.vorschau', { src: v.vorschau, alt: '', loading: 'lazy' }) : h('span.kachel.grau', ico('kasten'));
   const zeichneListe = () => {
-    const treffer = suche(text, kat);
-    const zeilen = treffer.map(v => h('button.zeile.mit-ico', { onclick: () => waehle(v) }, mini(v), h('span.haupt', h('b', v.name), h('small', `${Math.round(v.b * 100)} × ${Math.round(v.t * 100)} × ${Math.round(v.h * 100)} cm`))));
+    const treffer = filtere(vorlagen, text, kat);
+    const zeilen = treffer.map(v => h('button.zeile.mit-bild', { onclick: () => waehle(v) }, bild(v),
+      h('span.haupt', h('b', v.name), h('small', v.quelle === 'eigen' ? `Eigenes Modell · ${masseText(v)}` : `${masseText(v)} · ${v.quelle}`))));
+    const oben = !text && (!kat || kat === 'eigen');
     liste.replaceChildren(
-      !ersetzeId && !text && !kat ? h('div.abschnitt', h('div.liste', h('button.zeile.mit-ico', { onclick: () => waehle(EIGENES) }, h('span.kachel', ico('kasten')), h('span.haupt', h('b', 'Eigenes Möbel'), h('small', 'Kasten mit eigenen Maßen'))))) : null,
-      h('div.abschnitt', zeilen.length ? h('div.liste', zeilen) : h('p.fuss', 'Nichts gefunden')),
+      oben ? h('div.abschnitt', h('div.liste',
+        h('button.zeile.mit-ico', { onclick: () => datei.click() }, h('span.kachel', ico('kasten')), h('span.haupt', h('b', 'Eigenes 3D-Modell laden'), h('small', 'GLB oder USDZ, z. B. rundum fotografiert'))),
+        !ersetzeId && h('button.zeile.mit-ico', { onclick: () => waehle(EIGENES) }, h('span.kachel', ico('lineal')), h('span.haupt', h('b', 'Kasten mit eigenen Maßen'), h('small', 'Für alles, was es nicht als Modell gibt'))))) : null,
+      h('div.abschnitt', zeilen.length ? h('div.liste', zeilen) : h('p.fuss', vorlagen.length ? 'Nichts gefunden' : 'Katalog lädt …')),
       h('div.abschnitt', h('h3', 'Kommt noch'), h('div.liste',
-        h('div.zeile.aus.mit-ico', h('span.kachel.grau', ico('wolke')), h('span.haupt', h('b', 'Modelle von Poly Haven'), h('small', 'Freie 3D-Modelle mit echten Maßen'))),
-        h('div.zeile.aus.mit-ico', h('span.kachel.grau', ico('kasten')), h('span.haupt', h('b', 'Eigenes 3D-Modell laden'), h('small', 'GLB oder USDZ'))),
-        h('div.zeile.aus.mit-ico', h('span.kachel.grau', ico('link')), h('span.haupt', h('b', 'Von IKEA'), h('small', 'Produktlink einfügen'))))));
+        h('div.zeile.aus.mit-ico', h('span.kachel.grau', ico('link')), h('span.haupt', h('b', 'Von IKEA'), h('small', 'Produktlink einfügen'))))),
+      h('p.fuss.quellen', 'Modelle von Poly Haven und Kenney, frei nutzbar (CC0).'));
   };
   const chips = h('div.chips.scroll');
   const zeichneChips = () => chips.replaceChildren(...[[null, 'Alle'], ...KATEGORIEN].map(([k, t]) => h('button.chip' + (kat === k ? '.an' : ''), { type: 'button', onclick: () => { kat = k; zeichneChips(); zeichneListe(); } }, t)));
@@ -434,37 +442,112 @@ function katalogBlatt(ersetzeId = null) {
     h('div.blatt-kopf', h('h2', ersetzeId ? 'Ersetzen durch …' : 'Möbel'), h('button.schliessen', { 'aria-label': 'Schließen', onclick: () => schliesseBlatt() }, ico('x'))),
     h('div.inhalt',
       h('label.suche', ico('lupe'), h('input', { type: 'search', placeholder: 'Suchen', 'aria-label': 'Suchen', oninput: e => { text = e.target.value; zeichneListe(); } })),
-      chips, liste));
+      chips, liste, datei));
   inhalt.style.cssText = 'display:flex;flex-direction:column;min-height:0;flex:1';
   inhalt.querySelector('.inhalt').style.cssText = 'overflow-y:auto;flex:1';
   zeichneChips(); zeichneListe();
   oeffneBlatt(inhalt, { hoch: true });
+  alleVorlagen().then(l => { vorlagen = l; zeichneListe(); });
 
-  function waehle(v) {
-    const vorlage = { ...v, modell: v.id?.startsWith('kasten:') ? null : v.id };
-    if (ersetzeId) {
-      const alt = S.doc.moebel.find(x => x.id === ersetzeId);
-      const { moebel, unterschied } = ersetze(alt, vorlage);
-      S.doc.moebel = S.doc.moebel.map(x => (x.id === ersetzeId ? moebel : x));
-      schrittMachen(); schliesseBlatt(true);
-      hinweis(unterschied.join(' · '));
-      tippen(ersetzeId);
-      return;
-    }
-    const m = stelleAuf(vorlage, P.plan.mitte(), raumVon(S.doc));
-    S.doc.moebel.push(m); S.auswahl = m.id;
-    schrittMachen(); schliesseBlatt(true); zeichnePlan();
-    if (v === EIGENES) tippen(m.id);
-  }
+  function waehle(v) { setzeVorlage(v, ersetzeId); }
 }
 
-function mini(v) {
-  const ns = 'http://www.w3.org/2000/svg', s = document.createElementNS(ns, 'svg'), k = 24 / Math.max(v.b, v.t, 0.5);
-  s.setAttribute('viewBox', '0 0 30 30'); s.setAttribute('class', 'mini');
-  const r = document.createElementNS(ns, 'rect');
-  Object.entries({ x: 15 - v.b * k / 2, y: 15 - v.t * k / 2, width: v.b * k, height: v.t * k, rx: 2 }).forEach(([a, b]) => r.setAttribute(a, b));
-  s.append(r);
-  return s;
+/** Vorlage in den Raum stellen oder ein Möbel damit ersetzen. */
+function setzeVorlage(v, ersetzeId = null) {
+  const vorlage = { name: v.name, kategorie: v.kategorie, b: v.b, t: v.t, h: v.h, quelle: v.quelle === 'eigen' ? 'eigen' : 'katalog', modell: v.modell ?? null };
+  if (ersetzeId) {
+    const alt = S.doc.moebel.find(x => x.id === ersetzeId);
+    const { moebel, unterschied } = ersetze(alt, vorlage);
+    S.doc.moebel = S.doc.moebel.map(x => (x.id === ersetzeId ? moebel : x));
+    schrittMachen(); schliesseBlatt(true);
+    hinweis(unterschied.join(' · '));
+    tippen(ersetzeId);
+    return;
+  }
+  const m = stelleAuf(vorlage, P.plan.mitte(), raumVon(S.doc));
+  S.doc.moebel.push(m); S.auswahl = m.id;
+  schrittMachen(); schliesseBlatt(true); zeichnePlan();
+  if (v === EIGENES) tippen(m.id);
+}
+
+/* ---------- Eigenes 3D-Modell: auf den Boden, Vorderseite festlegen, auf echte Breite bringen ---------- */
+async function eigenesModellBlatt(datei, ersetzeId) {
+  if (datei.size > 80e6) { hinweis('Die Datei ist größer als 80 MB'); return; }
+  const [M, THREE] = await Promise.all([import('./modelle.js'), import('three')]);
+  const puffer = await datei.arrayBuffer(), art = M.dateiArt(puffer);
+  let objekt;
+  try { objekt = await M.parse(puffer, art); } catch (e) { hinweis(e.message || 'Modell lässt sich nicht lesen'); return; }
+  M.texturenBegrenzen(objekt);
+
+  // faktor: Maßstab Modell → echte Größe. Drehen ändert ihn nicht (das Möbel wird ja nicht größer)
+  let drehung = 0, roh = null, faktor = null;
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const szene = new THREE.Scene(), kamera = new THREE.PerspectiveCamera(30, 1, 0.01, 500);
+  szene.add(new THREE.HemisphereLight(0xffffff, 0x8e8c9a, 2.2));
+  const sonne = new THREE.DirectionalLight(0xffffff, 1.6); sonne.position.set(2, 4, 3); szene.add(sonne);
+  // Pfeil auf dem Boden: zeigt, wo vorne ist
+  const pfeil = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape([[-0.5, 0], [0.5, 0], [0, 0.7]].map(([x, y]) => new THREE.Vector2(x, y)))),
+    new THREE.MeshBasicMaterial({ color: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(), side: THREE.DoubleSide }));
+  pfeil.rotation.x = -Math.PI / 2;
+  szene.add(pfeil);
+  let gruppe = null;
+
+  const vorschau = h('div.modell-vorschau', renderer.domElement);
+  const name = h('input.text', { type: 'text', value: datei.name.replace(/\.(glb|usdz)$/i, ''), 'aria-label': 'Name des Modells' });
+  const tiefe = h('output'), hoehe = h('output'), warnung = h('p.fuss');
+  const breiteFeld = cmFeld(null, v => { if (v > 0) { faktor = v / roh.b; masse(false); } }, { label: 'Breite' });
+
+  function aufbauen() {
+    if (gruppe) szene.remove(gruppe);
+    const n = M.normalisiere(objekt, drehung);
+    gruppe = n.gruppe; roh = n.masse; szene.add(gruppe);
+    faktor ??= 1;
+    masse(true);
+  }
+  function masse(feldNeu) {
+    const k = faktor;
+    if (feldNeu) breiteFeld.querySelector('input').value = String(Math.round(roh.b * k * 1000) / 10).replace('.', ',');
+    gruppe.scale.setScalar(k);
+    tiefe.textContent = Math.round(roh.t * k * 100); hoehe.textContent = Math.round(roh.h * k * 100);
+    const gross = Math.max(roh.b, roh.t, roh.h) * k;
+    warnung.textContent = gross > 8 || gross < 0.05 ? 'Die Maße wirken nicht echt – trag die Breite ein, die du gemessen hast.' : '';
+    // Kamera schräg von vorn, Pfeil vor die Vorderseite
+    const r = Math.hypot(roh.b, roh.t, roh.h) * k / 2, abstand = r / Math.sin(THREE.MathUtils.degToRad(15));
+    pfeil.scale.setScalar(Math.max(0.15, r * 0.35)); pfeil.position.set(0, 0.002, roh.t * k / 2 + r * 0.15);
+    kamera.position.set(0, roh.h * k / 2, 0).addScaledVector(new THREE.Vector3(0.55, 0.5, 1).normalize(), abstand);
+    kamera.lookAt(0, roh.h * k / 2, 0); kamera.far = abstand * 4; kamera.updateProjectionMatrix();
+    zeichne();
+  }
+  function zeichne() {
+    const w = vorschau.clientWidth || 300, hh = vorschau.clientHeight || 220;
+    renderer.setSize(w, hh, false); kamera.aspect = w / hh; kamera.updateProjectionMatrix();
+    renderer.render(szene, kamera);
+  }
+
+  async function uebernehmen() {
+    const k = faktor;
+    const eintrag = { id: neueId(), name: name.value.trim() || 'Eigenes Modell', art, daten: puffer, drehung, b: roh.b * k, t: roh.t * k, h: roh.h * k,
+      vorschau: renderer.domElement.toDataURL('image/png') };
+    try { await speichereModell(eintrag); } catch { hinweis('Speichern hat nicht geklappt – ist der Speicher voll?'); return; }
+    renderer.dispose();
+    setzeVorlage({ ...eintrag, kategorie: 'eigen', quelle: 'eigen', modell: 'eigen:' + eintrag.id }, ersetzeId);
+  }
+
+  const inhalt = h('div',
+    h('div.blatt-kopf', name, h('button.schliessen', { 'aria-label': 'Schließen', onclick: () => schliesseBlatt() }, ico('x'))),
+    h('div.inhalt',
+      h('div.abschnitt', vorschau),
+      h('div.abschnitt', h('div.liste',
+        h('div.zeile', h('span.haupt', h('b', 'Vorderseite')),
+          h('button.rund', { type: 'button', 'aria-label': 'Vorderseite 90° nach links', onclick: () => { drehung = (drehung + 90) % 360; aufbauen(); } }, ico('links15')),
+          h('button.rund', { type: 'button', 'aria-label': 'Vorderseite 90° nach rechts', onclick: () => { drehung = (drehung + 270) % 360; aufbauen(); } }, ico('rechts15'))),
+        h('label.zeile', h('span.haupt', h('b', 'Breite')), breiteFeld),
+        h('div.zeile', h('span.haupt', h('b', 'Tiefe')), h('span.wert', tiefe, ' cm')),
+        h('div.zeile', h('span.haupt', h('b', 'Höhe')), h('span.wert', hoehe, ' cm'))), warnung),
+      h('button.knopf', { onclick: uebernehmen }, ersetzeId ? 'Damit ersetzen' : 'In den Raum stellen')));
+  oeffneBlatt(inhalt, { hoch: true, beiSchliessen: () => renderer.dispose() });
+  requestAnimationFrame(aufbauen);
 }
 
 /* ---------- Mehr ---------- */
@@ -483,7 +566,11 @@ function mehrBlatt() {
 }
 
 async function exportieren() {
-  const daten = JSON.stringify({ format: 'raumplaner-raum', version: 1, raum: kopie(S.doc) }, null, 1);
+  // eigene Modelle, die im Raum stehen, kommen mit in die Datei (sonst fehlen sie auf dem anderen Gerät)
+  const ids = [...new Set(S.doc.moebel.map(m => m.modell).filter(v => v?.startsWith('eigen:')).map(v => v.slice(6)))];
+  const modelle = [];
+  for (const id of ids) { const d = await ladeModellDaten(id); if (d) modelle.push({ ...d, daten: zuBase64(d.daten) }); }
+  const daten = JSON.stringify({ format: 'raumplaner-raum', version: 2, raum: kopie(S.doc), modelle });
   const name = `${(S.doc.name || 'Raum').replace(/[^\wäöüÄÖÜß -]/g, '')}.raumplan.json`;
   const datei = new File([daten], name, { type: 'application/json' });
   // iPhone: Teilen-Blatt („In Dateien sichern“, AirDrop); am Mac normaler Download
@@ -494,6 +581,13 @@ async function exportieren() {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+
+function zuBase64(puffer) {
+  const b = new Uint8Array(puffer); let s = '';
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function ausBase64(text) { const s = atob(text), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b.buffer; }
 
 /* ---------- Tastatur am Mac ---------- */
 addEventListener('keydown', e => {

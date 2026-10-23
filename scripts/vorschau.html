@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Vorschau</title>
+<style>html,body{margin:0;background:transparent}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "../vendor/three-0.186.1/three.module.js", "three/addons/": "../vendor/three-0.186.1/addons/" } }</script>
+</head>
+<body>
+<script type="module">
+// Hilfsseite für scripts/vorschau.mjs: ein Modell schräg von vorn (Vorderseite +Z) auf durchsichtigem Grund.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setSize(240, 240); renderer.setClearColor(0x000000, 0);
+document.body.append(renderer.domElement);
+const szene = new THREE.Scene();
+szene.add(new THREE.HemisphereLight(0xffffff, 0x8e8c9a, 2.2));
+const sonne = new THREE.DirectionalLight(0xffffff, 1.6); sonne.position.set(2, 4, 3); szene.add(sonne);
+const kamera = new THREE.PerspectiveCamera(30, 1, 0.01, 50);
+const lader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+let modell = null;
+window.zeige = async datei => {
+  if (modell) szene.remove(modell);
+  modell = (await lader.loadAsync('../' + datei)).scene;
+  szene.add(modell);
+  const box = new THREE.Box3().setFromObject(modell), groesse = box.getSize(new THREE.Vector3()), mitte = box.getCenter(new THREE.Vector3());
+  const r = groesse.length() / 2, abstand = r / Math.sin(THREE.MathUtils.degToRad(15)) * 1.02;
+  const richtung = new THREE.Vector3(0.55, 0.45, 1).normalize();
+  kamera.position.copy(mitte).addScaledVector(richtung, abstand);
+  kamera.lookAt(mitte);
+  renderer.render(szene, kamera);
+};
+</script>
+</body>
+</html>

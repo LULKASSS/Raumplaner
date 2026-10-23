@@ -20,9 +20,10 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
   Abstände in cm beim Ziehen, Überschneidung rot + schraffiert, Möbel-Sheet (Maße, 15°-Drehen, frei drehen,
   Seite an die Wand, Duplizieren, Ersetzen mit „12 cm breiter“, Löschen), Rückgängig/Wiederholen, automatisch
   speichern (IndexedDB), Raum als Datei sichern/öffnen, Testraum, Home-Bildschirm (Manifest, Symbol).
-- Noch nicht: echte 3D-Modelle (Poly Haven, Kenney), eigene GLB/USDZ, IKEA-Abruf mit Durchreicher – im Katalog
-  als „Kommt noch“ sichtbar. Nächste Schritte laut Auftrag: Katalog mit echten Modellen (Quellen und Lizenzen
-  je Modell), eigene Modelle hochladen, IKEA-Abruf (wo der Durchreicher läuft, entscheidet Lukas).
+- Seit 23.10.2026 auf `main` (von Lukas abgenommen): Katalog mit 29 echten Modellen (16 Poly Haven,
+  13 Kenney) mit Vorschaubildern, 3D-Ansicht zeigt die Modelle, eigene GLB/USDZ laden (Vorderseite festlegen,
+  per Breite auf echte Größe), eigene Modelle wandern mit in die Raum-Datei.
+- Später: IKEA-Abruf (Lukas, 23.10.2026: „IKEA kommt später“; wo der Durchreicher läuft, entscheidet er).
 - Kurswechsel 23.10.2026: Scannen fällt weg. Lukas fand die Scan-App nicht und will keine fremde App; ein Raum aus
   einem Video geht im Browser nicht zentimetergenau (kein LiDAR in Safari, kein Maßstab, Rechnen bräuchte einen Server).
   Der Import aus CapturedRoom-JSON bleibt im Kern, die Oberfläche bietet ihn nicht an.
@@ -40,7 +41,11 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
   - `platzieren.js` – Einrasten (Wand, Ecke, Möbel), Drehen, Abstände, Überschneidung, Ersetzen, Duplizieren
   - `verlauf.js` – Rückgängig/Wiederholen über ganze Zustände
   - `format.js` – deutsche Zahlen („4,20 m“, „15,1 m²“, „210 × 92 × 82 cm“)
-- `vendor/three-0.186.1/` – three.js (MIT) mit OrbitControls, feste Version, keine CDNs.
+- `vendor/three-0.186.1/` – three.js (MIT) mit OrbitControls, GLTFLoader, DRACOLoader (+ Wasm-Decoder),
+  Meshopt-Decoder, USDLoader (+ fflate), feste Version, keine CDNs.
+- `src/app/modelle.js` – Modelle laden (Katalog-GLB, eigene GLB/USDZ), auf den Boden stellen, Texturen auf 1024 px.
+- `katalog/` – `katalog.json` (je Modell Name, Kategorie, Maße, Datei, Vorschau, Quelle, Autor, Lizenz, Stand),
+  `modelle/*.glb`, `vorschau/*.png`. Erzeugt mit `npm run modelle` und `npm run vorschau`, nicht von Hand ändern.
 - `manifest.webmanifest`, `icon.svg`, `icon-180.png`, `icon-512.png` – Home-Bildschirm.
 - `daten/testraum.json` – erfundener Raum als CapturedRoom-JSON (für den Kern-Import), erzeugt von `scripts/testraum.mjs`.
 - `scripts/serve.mjs` – Dev-Server auf :5190, auch im WLAN; `scripts/check.mjs` – Fehlercheck; `scripts/icon.mjs` – Symbole.
@@ -51,6 +56,9 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
 ## Befehle
 - `npm test` – Fehlercheck + alle Tests (≈10 s, braucht einmal `npx playwright install webkit`). Vor jedem Commit grün.
 - `npm run dev` – lokal ansehen: http://localhost:5190, die WLAN-Adresse fürs iPhone steht in der Ausgabe.
+- `npm run modelle` – Katalog-Modelle neu bauen (lädt Poly Haven 1k und das Kenney-Kit nach `.modelle-cache/`,
+  richtet aus, verkleinert Texturen mit `sips`, Meshopt). Einzelne: `npm run modelle -- sofa_02`.
+- `npm run vorschau` – Vorschaubilder neu rendern (`-- --blatt datei.png` gibt zusätzlich ein Übersichtsblatt).
 - `npm run icon` – Symbole aus `icon.svg` neu erzeugen. `npm run testraum` – CapturedRoom-Testraum neu erzeugen.
 
 ## Regeln
@@ -65,6 +73,17 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
 - Look: iOS-Standard (Systemschrift, Bottom Sheets, Segmented Control, Listen, Schalter), Akzent Flieder aus
   den `app-ui`-Tokens `--accent`/`--accent-ink`. Von `app-ui` gelten Grundhaltung, Bewegung, Zahlen, Handy,
   Technik – **nicht** Farben, Schrift und Karten-Optik.
+
+## Katalog: Quellen und Lizenzen
+- **Poly Haven** (https://polyhaven.com, CC0): 16 Möbel in echter Größe (Maße aus dem Modell, stimmen mit der
+  Angabe auf Poly Haven überein), 1k-Texturen. Genutzt werden heruntergeladene Dateien, nicht die Live-API – der
+  Pflicht-Hinweis „Powered by Poly Haven“ gilt erst bei Live-Abruf; genannt wird die Quelle trotzdem im Katalog.
+- **Kenney Furniture Kit 2.0** (https://kenney.nl/assets/furniture-kit, CC0): 13 Modelle, Spiel-Look und Spiel-
+  Maßstab, darum auf übliche Maße gestreckt (Liste in `scripts/modelle.mjs`). Das Kit liefert schon GLB.
+- Je Modell stehen Quelle, Autor, Lizenz und Stand in `katalog/katalog.json`; der Fehlercheck lässt nur CC0 durch.
+- Vorderseite: Poly Haven zeigt nach +Z (Blender −Y); Ausnahme `modern_coffee_table_01` (um 90° gedreht).
+  Geprüft am Übersichtsblatt der Vorschaubilder.
+- Nicht genommen: Ecksofas (L-Form passt nicht zur rechteckigen Grundfläche im Kern), Gothic-/Barockmöbel.
 
 ## Rechenkern: Abmachungen
 - Meter, Grundriss in x/z, Y nach oben (wie RoomPlan). Beim Import wird der Raum gerade gedreht (Wände entlang
@@ -87,6 +106,11 @@ und Commits: **Deutsch**. Auftrag von Lukas vom 23.10.2026.
 - Ein Möbel, das über die Wand hinaus gezogen wird, bleibt im Raum und rastet an dieser Wand ein. Bündig an ein
   Nachbarmöbel rastet es nur bis 12 cm Abstand oder Überlappung; tiefer hineingezogen bleibt es sichtbar überschnitten.
 - Raum-Datei: `<Name>.raumplan.json`; am iPhone über das Teilen-Blatt („In Dateien sichern“, AirDrop), am Mac Download.
+  Ab Version 2 stecken eigene Modelle, die im Raum stehen, als Base64 mit drin.
+- Eigene Modelle: höchstens 80 MB, GLB (auch Draco/Meshopt) oder USDZ. Maßstab bleibt beim Drehen der Vorderseite
+  gleich; wirken die Maße unecht (über 8 m oder unter 5 cm), bittet die App um die gemessene Breite.
+- Modelle werden in 3D auf die Maße des Möbels gestreckt (b × t × h); ändert man die Maße im Sheet, ändert sich das
+  Modell mit. Im Grundriss bleibt es ein Rechteck mit Namen.
 - (nur für den ungenutzten Scan-Import) **CapturedRoom-JSON-Form** ist aus Apples Doku und dem Codable-Verhalten abgeleitet, nicht an einer echten
   Datei geprüft: Matrix als 16 Zahlen spaltenweise (vier Spalten geht auch), Kategorie als `{ "sofa": {} }`
   (Text geht auch), `dimensions` = Breite, Höhe, Tiefe, Mitte des Körpers im Transform, Wände ohne Dicke.

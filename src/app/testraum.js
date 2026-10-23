@@ -11,8 +11,8 @@ export const TESTRAUM = {
     ]
   },
   moebel: [
-    { id: 'test-sofa', kategorie: 'sofa', name: 'Sofa 3-Sitzer', quelle: 'katalog', x: 0.3, z: 1.34, winkel: 180, b: 2.1, t: 0.92, h: 0.82, ueberBoden: 0 },
-    { id: 'test-tisch', kategorie: 'tisch', name: 'Couchtisch', quelle: 'katalog', x: 0.3, z: 0.2, winkel: 0, b: 1.1, t: 0.6, h: 0.45, ueberBoden: 0 },
-    { id: 'test-regal', kategorie: 'regal', name: 'Bücherregal', quelle: 'katalog', x: 1.96, z: -0.2, winkel: 270, b: 0.8, t: 0.28, h: 2.02, ueberBoden: 0 }
+    { id: 'test-sofa', kategorie: 'sofa', name: 'Sofa 3-Sitzer', quelle: 'katalog', modell: 'katalog:kenney-loungeSofa', x: 0.3, z: 1.34, winkel: 180, b: 2.1, t: 0.92, h: 0.82, ueberBoden: 0 },
+    { id: 'test-tisch', kategorie: 'tisch', name: 'Couchtisch', quelle: 'katalog', modell: 'katalog:modern_coffee_table_01', x: 0.3, z: 0.2, winkel: 0, b: 1.2, t: 0.6, h: 0.39, ueberBoden: 0 },
+    { id: 'test-regal', kategorie: 'regal', name: 'Bücherregal', quelle: 'katalog', modell: 'katalog:kenney-bookcaseOpen', x: 1.95, z: -0.2, winkel: 270, b: 0.8, t: 0.3, h: 1.8, ueberBoden: 0 }
   ]
 };
